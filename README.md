@@ -47,3 +47,7 @@ Use small, reviewable pull requests with a clear scope.
 ## Notes
 
 This project currently uses Gmail DOM automation rather than the Gmail API, so Gmail UI changes may require selector updates.
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE).
