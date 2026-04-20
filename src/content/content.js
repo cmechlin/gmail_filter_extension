@@ -1,4 +1,11 @@
 (function () {
+  const QUICK_FILTER_BUTTON_ID = "gmail-filter-manager-quick-filter";
+  const QUICK_FILTER_STYLE_ID = "gmail-filter-manager-style";
+  const LAST_LABEL_KEY = "quickFilterLastLabel";
+  const QUICK_FILTER_REFRESH_MS = 1200;
+  let selectionObserver = null;
+  let selectionRefreshTimer = null;
+
   const SYSTEM_LABELS = new Set([
     "inbox",
     "starred",
@@ -44,6 +51,8 @@
           url: location.href,
           ready: true
         };
+      case "showTestAlert":
+        return showTestAlert(payload);
       case "getSnapshot":
         return getSnapshot();
       case "listLabels":
@@ -79,6 +88,23 @@
       filters,
       exportedAt: new Date().toISOString(),
       sourceUrl: location.href
+    };
+  }
+
+  initializeQuickFilterButton().catch((error) => {
+    console.error("Failed to initialize Gmail Filter Manager quick filter button", error);
+  });
+
+  async function showTestAlert(payload) {
+    const title = cleanText(document.title || "Gmail");
+    const message = cleanText(payload?.message || `Connected to Gmail: ${title}`);
+
+    window.alert(message);
+
+    return {
+      shown: true,
+      title,
+      url: location.href
     };
   }
 
@@ -249,6 +275,10 @@
     const actionDialog = await waitFor(() => findVisibleDialog(), { timeout: 12000 });
     await fillFilterActions(actionDialog, payload);
 
+    if (payload?.applyToMatching) {
+      await setCheckboxByLabel(actionDialog, "Also apply filter to matching conversations", true);
+    }
+
     const submit = await findClickableByText(actionDialog, ["Create filter", "Create"]);
 
     if (!submit) {
@@ -262,6 +292,274 @@
       created: summarizeFilterPayload(payload),
       filters: await listFilters()
     };
+  }
+
+  async function initializeQuickFilterButton() {
+    await waitForGmailShell();
+    ensureQuickFilterStyles();
+    observeMailboxSelection();
+    renderQuickFilterButton();
+  }
+
+  function observeMailboxSelection() {
+    if (selectionObserver) {
+      selectionObserver.disconnect();
+    }
+
+    if (selectionRefreshTimer) {
+      window.clearInterval(selectionRefreshTimer);
+    }
+
+    selectionObserver = new MutationObserver(() => renderQuickFilterButton());
+    selectionObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["aria-checked", "class", "style"]
+    });
+
+    document.addEventListener("click", scheduleQuickFilterRender, true);
+    document.addEventListener("keyup", scheduleQuickFilterRender, true);
+    selectionRefreshTimer = window.setInterval(renderQuickFilterButton, QUICK_FILTER_REFRESH_MS);
+  }
+
+  function scheduleQuickFilterRender() {
+    window.requestAnimationFrame(() => renderQuickFilterButton());
+  }
+
+  function renderQuickFilterButton() {
+    const toolbar = findSelectionToolbar();
+    const selectedRows = getSelectedRows();
+    const existingButton = document.getElementById(QUICK_FILTER_BUTTON_ID);
+
+    if (!toolbar) {
+      existingButton?.remove();
+      return;
+    }
+
+    if (existingButton?.parentElement !== toolbar) {
+      existingButton?.remove();
+    }
+
+    if (existingButton) {
+      existingButton.textContent = `Create Label Rule (${selectedRows.length})`;
+      existingButton.disabled = selectedRows.length === 0;
+      existingButton.title = selectedRows.length
+        ? "Create a Gmail filter from the selected messages"
+        : "Select one or more Gmail messages to create a filter";
+      return;
+    }
+
+    const button = document.createElement("button");
+    button.id = QUICK_FILTER_BUTTON_ID;
+    button.type = "button";
+    button.className = "gmail-filter-manager-button";
+    button.textContent = `Create Label Rule (${selectedRows.length})`;
+    button.disabled = selectedRows.length === 0;
+    button.title = selectedRows.length
+      ? "Create a Gmail filter from the selected messages"
+      : "Select one or more Gmail messages to create a filter";
+    button.addEventListener("click", handleQuickFilterButtonClick);
+    toolbar.appendChild(button);
+  }
+
+  async function handleQuickFilterButtonClick(event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const button = event.currentTarget;
+
+    if (!(button instanceof HTMLButtonElement)) {
+      return;
+    }
+
+    const selectedRows = getSelectedRows();
+
+    if (!selectedRows.length) {
+      window.alert("Select one or more Gmail messages first.");
+      renderQuickFilterButton();
+      return;
+    }
+
+    button.disabled = true;
+
+    try {
+      const senders = collectSelectedSenderAddresses(selectedRows);
+
+      if (!senders.length) {
+        throw new Error("Could not determine sender addresses from the selected messages.");
+      }
+
+      const labelName = await promptForQuickFilterLabel();
+
+      if (!labelName) {
+        return;
+      }
+
+      const labels = await listLabels();
+      const labelExists = labels.some((label) => normalizeText(label.name) === normalizeText(labelName));
+
+      if (!labelExists) {
+        await createLabel({ name: labelName });
+      }
+
+      const fromClause = buildFromClause(senders);
+
+      await createFilter({
+        from: fromClause,
+        labelName,
+        archive: true,
+        neverSpam: true,
+        applyToMatching: true
+      });
+
+      await chrome.storage.local.set({ [LAST_LABEL_KEY]: labelName });
+      window.alert(`Created Gmail filter for ${senders.length} sender${senders.length === 1 ? "" : "s"} with label \"${labelName}\", Skip Inbox, and Never Spam.`);
+    } catch (error) {
+      window.alert(error.message || "Could not create the Gmail filter.");
+    } finally {
+      button.disabled = false;
+      renderQuickFilterButton();
+    }
+  }
+
+  async function promptForQuickFilterLabel() {
+    const stored = await chrome.storage.local.get([LAST_LABEL_KEY]);
+    const suggested = stored[LAST_LABEL_KEY] || "";
+    const labelName = window.prompt("Label to apply. Use an existing label or enter a new one.", suggested);
+
+    if (!labelName) {
+      return null;
+    }
+
+    const trimmed = cleanText(labelName);
+
+    if (!trimmed) {
+      return null;
+    }
+
+    return trimmed;
+  }
+
+  function collectSelectedSenderAddresses(rows) {
+    const senders = new Set();
+
+    rows.forEach((row) => {
+      readSenderCandidates(row).forEach((sender) => {
+        const normalized = normalizeSender(sender);
+
+        if (normalized) {
+          senders.add(normalized);
+        }
+      });
+    });
+
+    return [...senders];
+  }
+
+  function readSenderCandidates(row) {
+    const values = new Set();
+    const candidates = row.querySelectorAll('[email], [data-hovercard-id], [data-name], span[title], div[title], span[email]');
+
+    candidates.forEach((candidate) => {
+      const possibleValues = [
+        candidate.getAttribute("email"),
+        candidate.getAttribute("data-hovercard-id"),
+        candidate.getAttribute("title"),
+        candidate.getAttribute("data-name"),
+        candidate.textContent
+      ];
+
+      possibleValues.forEach((value) => {
+        const cleaned = cleanText(value || "");
+
+        if (cleaned) {
+          values.add(cleaned);
+        }
+      });
+    });
+
+    return [...values];
+  }
+
+  function normalizeSender(value) {
+    const cleaned = cleanText(value || "");
+
+    if (!cleaned || cleaned.length < 3) {
+      return "";
+    }
+
+    const emailMatch = cleaned.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+
+    if (emailMatch) {
+      return emailMatch[0].toLowerCase();
+    }
+
+    if (/^(me|starred|important|draft|inbox)$/i.test(cleaned)) {
+      return "";
+    }
+
+    return cleaned;
+  }
+
+  function buildFromClause(senders) {
+    return senders
+      .map((sender) => sender.includes(" ") ? `"${sender}"` : sender)
+      .join(" OR ");
+  }
+
+  function getSelectedRows() {
+    return [...document.querySelectorAll('[role="main"] div[role="checkbox"][aria-checked="true"], tr[role="row"], table tr')]
+      .map((candidate) => candidate.matches('div[role="checkbox"]') ? candidate.closest('tr[role="row"], tr') : candidate)
+      .filter(Boolean)
+      .filter((row, index, rows) => rows.indexOf(row) === index)
+      .filter((row) => {
+        const checkbox = row.querySelector('div[role="checkbox"][aria-checked="true"]');
+        return checkbox && isVisible(row);
+      });
+  }
+
+  function findSelectionToolbar() {
+    const scope = document.querySelector('[role="main"]') || document;
+    const toolbarCandidates = [...scope.querySelectorAll('div[role="toolbar"]')].filter(isVisible);
+
+    return toolbarCandidates.find((toolbar) => {
+      const actionControls = [...toolbar.querySelectorAll('div[role="button"], button')];
+
+      return actionControls.some((control) => {
+        const text = normalizeText(control.textContent || control.getAttribute("aria-label") || control.getAttribute("title") || "");
+        return text.includes("archive") || text.includes("delete") || text.includes("report spam") || text.includes("label") || text.includes("move to");
+      });
+    }) || null;
+  }
+
+  function ensureQuickFilterStyles() {
+    if (document.getElementById(QUICK_FILTER_STYLE_ID)) {
+      return;
+    }
+
+    const style = document.createElement("style");
+    style.id = QUICK_FILTER_STYLE_ID;
+    style.textContent = `
+      #${QUICK_FILTER_BUTTON_ID} {
+        border: 1px solid rgba(166, 75, 26, 0.35);
+        background: linear-gradient(135deg, #a64b1a, #7b2f08);
+        color: #fff7ef;
+        border-radius: 999px;
+        padding: 0 16px;
+        min-height: 36px;
+        margin-left: 8px;
+        font: 500 13px/1 "Google Sans", Arial, sans-serif;
+        cursor: pointer;
+      }
+
+      #${QUICK_FILTER_BUTTON_ID}:disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+      }
+    `;
+
+    document.documentElement.appendChild(style);
   }
 
   async function deleteFilter(payload) {

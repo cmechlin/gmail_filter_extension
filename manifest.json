@@ -1,18 +1,20 @@
 {
   "manifest_version": 3,
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApufp2w46Z4yIVzGnjD6fB1Pi5TrgLniJ8aJLx/IOmPlVxigjU5P5FbkoJBvYC/wY4M2PIortGSFEz0vqKPUVMiZTcRYlEiCNvK6lLtdOLRBftRmI6gL+c+TAQCHtGZpsPYh+HyOJDnRfTsUtaVlq/y0f9EntCNzGu0uWR27ULY5ui+Hc6JU7FKO7Sn8x7+GI1eCWav9Yt+zCEnDFOtQN1Wqxi28YI2n6gC+Tty+lO5Mtb99VPJ2bpaLSpsRcKvsylgJfwgSpX/X6pkbfTmxEdQ0Zf8vbSWqAFakpuxopaAVCN/ZRSnaFVWhCMVrz+/vEc/ir3euiSXMG776Iyrh4RQIDAQAB",
   "name": "Gmail Filter Manager",
   "version": "0.1.0",
   "description": "Manage Gmail filters and labels from a Chrome side panel.",
   "minimum_chrome_version": "147",
-  "permissions": [
-    "sidePanel",
-    "storage",
-    "tabs",
-    "downloads"
-  ],
-  "host_permissions": [
-    "https://mail.google.com/*"
-  ],
+  "permissions": ["sidePanel", "storage", "tabs", "downloads", "identity"],
+  "host_permissions": ["https://mail.google.com/*", "https://www.googleapis.com/*", "https://oauth2.googleapis.com/*"],
+  "oauth2": {
+    "client_id": "382894673505-bqfe09oono4ft754bmbvgilbsl05c3pi.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/gmail.settings.basic",
+      "https://www.googleapis.com/auth/gmail.modify",
+      "https://www.googleapis.com/auth/userinfo.email"
+    ]
+  },
   "background": {
     "service_worker": "src/background.js",
     "type": "module"
@@ -35,14 +37,9 @@
   },
   "content_scripts": [
     {
-      "matches": [
-        "https://mail.google.com/*"
-      ],
-      "js": [
-        "src/content/content.js"
-      ],
+      "matches": ["https://mail.google.com/*"],
+      "js": ["src/content/content.js"],
       "run_at": "document_idle"
     }
   ]
 }
-
