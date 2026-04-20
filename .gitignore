@@ -3,3 +3,9 @@ dist/
 coverage/
 *.log
 Thumbs.db
+*.zip
+*.crx
+*.pem
+releases/
+package/
+

@@ -27,6 +27,10 @@ Use small, reviewable pull requests with a clear scope.
 - Include a short testing note describing what was validated in Chrome and Gmail
 - Call out any Gmail selector or DOM assumptions that may be brittle
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, testing, and pull request expectations.
+
 ## Current Scope
 
 - View current Gmail filters in one place
