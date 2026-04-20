@@ -31,6 +31,10 @@ Use small, reviewable pull requests with a clear scope.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, testing, and pull request expectations.
 
+## Release Process
+
+See [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md) for the current release checklist and [docs/STORE_METADATA.md](docs/STORE_METADATA.md) for Chrome Web Store listing placeholders.
+
 ## Current Scope
 
 - View current Gmail filters in one place
