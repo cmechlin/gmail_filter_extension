@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "Gmail Filter Manager",
+  "version": "0.1.0",
+  "description": "Manage Gmail filters and labels from a Chrome side panel.",
+  "minimum_chrome_version": "147",
+  "permissions": [
+    "sidePanel",
+    "storage",
+    "tabs",
+    "downloads"
+  ],
+  "host_permissions": [
+    "https://mail.google.com/*"
+  ],
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Open Gmail Filter Manager"
+  },
+  "side_panel": {
+    "default_path": "src/sidepanel/sidepanel.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://mail.google.com/*"
+      ],
+      "js": [
+        "src/content/content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}
