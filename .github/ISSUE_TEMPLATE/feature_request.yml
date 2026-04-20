@@ -1,0 +1,43 @@
+name: Feature request
+description: Suggest an improvement to the Gmail workflow or extension UX
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: input
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: What is cumbersome in Gmail today?
+      placeholder: Managing filters across multiple senders requires too many clicks
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed solution
+      placeholder: Describe the workflow you want in the extension
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Optional
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Expected impact
+      description: Who benefits and how?
+      placeholder: Reduces repetitive setup time when creating client-specific labels and filters
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Confirmation
+      options:
+        - label: This request is focused on a specific workflow or usability problem
+          required: true

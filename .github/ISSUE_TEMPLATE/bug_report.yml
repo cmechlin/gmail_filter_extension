@@ -1,0 +1,78 @@
+name: Bug report
+description: Report a reproducible problem with the extension
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Provide enough detail to reproduce the problem in Chrome and Gmail.
+
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: Short description of the bug
+      placeholder: Creating a label fails after opening the side panel
+    validations:
+      required: true
+
+  - type: input
+    id: chrome-version
+    attributes:
+      label: Chrome version
+      placeholder: 147.0.x
+    validations:
+      required: true
+
+  - type: input
+    id: gmail-context
+    attributes:
+      label: Gmail context
+      description: Include account type, language, theme, or layout if relevant
+      placeholder: Personal Gmail, English, default theme
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open Gmail
+        2. Open the extension side panel
+        3. Click Create label
+        4. Observe the error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: console
+    attributes:
+      label: Logs or screenshots
+      description: Paste relevant console errors or attach screenshots if available
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Confirmation
+      options:
+        - label: I reproduced this on a current version of develop
+          required: true
+        - label: I included enough detail to reproduce the problem
+          required: true
