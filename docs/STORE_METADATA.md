@@ -23,9 +23,9 @@ Gmail Filter Manager helps reduce the friction of managing Gmail labels and filt
 
 ## Required Links
 
-- Support URL: TODO
-- Homepage URL: TODO
-- Privacy policy URL: TODO
+- Support URL: https://github.com/cmechlin/gmail_filter_extension/issues
+- Homepage URL: https://github.com/cmechlin/gmail_filter_extension
+- Privacy policy URL: https://github.com/cmechlin/gmail_filter_extension/blob/develop/docs/PRIVACY_POLICY.md
 
 ## Store Assets Checklist
 
@@ -45,3 +45,5 @@ Gmail Filter Manager helps reduce the friction of managing Gmail labels and filt
 
 - This extension currently depends on Gmail DOM automation rather than the Gmail API.
 - Store copy should avoid implying affiliation with Google or Gmail beyond compatibility.
+- Update the privacy policy URL to the `main` branch path after the first stable merge if store assets are published before that.
+
